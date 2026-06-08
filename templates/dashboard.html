@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - FinTrack{% endblock %}
+
+{% block content %}
+<div class="top-header">
+    <div class="page-title">
+        <h1>Dashboard</h1>
+        <p>Welcome back, {{ user.username }}! Here is your financial overview.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{% url 'income' %}" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> Add Income</a>
+        <a href="{% url 'expense' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Log Expense</a>
+    </div>
+</div>
+
+<!-- Over-budget warnings alerts -->
+{% if over_budget_alerts %}
+<div style="margin-bottom: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
+    {% for alert in over_budget_alerts %}
+    <div class="message-alert warning" style="position: static; animation: none;">
+        <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-amber); font-size: 1.25rem;"></i>
+        <div>
+            <strong style="color: #fff;">Budget Overrun Warning:</strong> You have spent 
+            <strong style="color: var(--accent-rose);">${{ alert.spent }}</strong> on 
+            <strong>{{ alert.category }}</strong>, which exceeds your budget limit of 
+            <strong>${{ alert.budget }}</strong> by <span style="color: var(--accent-rose); font-weight: 600;">${{ alert.excess }}</span>.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Metrics Cards -->
+<div class="metrics-grid">
+    <div class="metric-card balance">
+        <div class="metric-card-header">
+            <span>Net Balance</span>
+            <div class="metric-card-icon"><i class="fa-solid fa-wallet"></i></div>
+        </div>
+        <div class="metric-val" style="color: {% if net_balance >= 0 %}#fff{% else %}var(--accent-rose){% endif %}">
+            ${{ net_balance|floatformat:2 }}
+        </div>
+        <div class="metric-desc">Available cashflow</div>
+    </div>
+    
+    <div class="metric-card income">
+        <div class="metric-card-header">
+            <span>Total Income</span>
+            <div class="metric-card-icon"><i class="fa-solid fa-arrow-down-long"></i></div>
+        </div>
+        <div class="metric-val" style="color: var(--accent-green);">${{ total_income|floatformat:2 }}</div>
+        <div class="metric-desc">Lifetime accumulated income</div>
+    </div>
+    
+    <div class="metric-card expense">
+        <div class="metric-card-header">
+            <span>Total Expenses</span>
+            <div class="metric-card-icon"><i class="fa-solid fa-arrow-up-long"></i></div>
+        </div>
+        <div class="metric-val" style="color: var(--accent-rose);">${{ total_expense|floatformat:2 }}</div>
+        <div class="metric-desc">Lifetime recorded expenses</div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="dashboard-grid" style="margin-bottom: 2.5rem;">
+    <div class="dashboard-card" style="min-height: 350px;">
+        <h3 class="card-title">Cash Flow Trends <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">(Last 6 Months)</span></h3>
+        <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="cashflowChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="dashboard-card" style="min-height: 350px;">
+        <h3 class="card-title">Expenses by Category</h3>
+        <div style="position: relative; height: 280px; width: 100%; display: flex; align-items: center; justify-content: center;">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Two Column Dashboard Grid for Recent Activity & Budgets -->
+<div class="dashboard-grid">
+    <!-- Left Column: Recent logs -->
+    <div class="dashboard-card">
+        <h3 class="card-title">
+            <span>Recent Activity</span>
+            <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">Last 5 Incomes & Expenses</span>
+        </h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Recent Income -->
+            <div>
+                <h4 style="font-size: 0.9rem; color: var(--accent-green); margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.25rem;">Recent Income</h4>
+                {% if recent_incomes %}
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inc in recent_incomes %}
+                            <tr>
+                                <td style="font-weight: 500;">{{ inc.source }}</td>
+                                <td>{{ inc.date|date:"M d, Y" }}</td>
+                                <td style="color: var(--accent-green); font-weight: 600;">+${{ inc.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">No income logged yet. <a href="{% url 'income' %}" style="color: var(--accent-indigo); text-decoration: none;">Log Income</a></p>
+                {% endif %}
+            </div>
+
+            <!-- Recent Expense -->
+            <div>
+                <h4 style="font-size: 0.9rem; color: var(--accent-rose); margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.25rem;">Recent Expenses</h4>
+                {% if recent_expenses %}
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exp in recent_expenses %}
+                            <tr>
+                                <td style="font-weight: 500;">{{ exp.category }}</td>
+                                <td>{{ exp.date|date:"M d, Y" }}</td>
+                                <td style="color: var(--accent-rose); font-weight: 600;">-${{ exp.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">No expenses logged yet. <a href="{% url 'expense' %}" style="color: var(--accent-indigo); text-decoration: none;">Log Expense</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Budgets & Savings Goal tracker -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Budget Tracking card -->
+        <div class="dashboard-card">
+            <h3 class="card-title">
+                <span>Active Budgets</span>
+                <a href="{% url 'budget' %}" style="font-size: 0.8rem; font-weight: normal; color: var(--accent-indigo); text-decoration: none;">Manage</a>
+            </h3>
+            
+            {% if budgets %}
+                {% for budget in budgets %}
+                <div class="budget-item">
+                    <div class="budget-info">
+                        <span style="font-weight: 500;">{{ budget.category }}</span>
+                        <span style="color: var(--text-secondary);">${{ budget.spent|floatformat:2 }} / ${{ budget.amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar {% if budget.is_over %}rose{% elif budget.progress > 85 %}amber{% else />green{% endif %}" style="width: {{ budget.progress }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.5rem 0;">No budgets set. <a href="{% url 'budget' %}" style="color: var(--accent-indigo); text-decoration: none;">Set Budget Limit</a></p>
+            {% endif %}
+        </div>
+
+        <!-- Savings Goals Card -->
+        <div class="dashboard-card">
+            <h3 class="card-title">
+                <span>Savings Goals</span>
+                <a href="{% url 'savings' %}" style="font-size: 0.8rem; font-weight: normal; color: var(--accent-indigo); text-decoration: none;">Manage</a>
+            </h3>
+            
+            {% if savings_goals %}
+                {% for goal in savings_goals %}
+                <div class="savings-item">
+                    <div class="savings-info">
+                        <span style="font-weight: 500;">{{ goal.goal_name }}</span>
+                        <span style="color: var(--text-secondary);">${{ goal.current_amount|floatformat:2 }} / ${{ goal.target_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar violet" style="width: {{ goal.progress }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.5rem 0;">No savings goals yet. <a href="{% url 'savings' %}" style="color: var(--accent-indigo); text-decoration: none;">Create Goal</a></p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Embed Django variables securely as JSON arrays
+    const chartCategories = {{ chart_categories|safe }};
+    const chartAmounts = {{ chart_amounts|safe }};
+    const monthsLabels = {{ months_labels|safe }};
+    const incomeByMonth = {{ income_by_month|safe }};
+    const expenseByMonth = {{ expense_by_month|safe }};
+
+    // Chart.js global configurations for style harmony
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+
+    // 1. Cash Flow Chart (Bar Chart)
+    const ctxFlow = document.getElementById('cashflowChart').getContext('2d');
+    new Chart(ctxFlow, {
+        type: 'bar',
+        data: {
+            labels: monthsLabels,
+            datasets: [
+                {
+                    label: 'Income',
+                    data: incomeByMonth,
+                    backgroundColor: 'rgba(16, 185, 129, 0.65)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                },
+                {
+                    label: 'Expense',
+                    data: expenseByMonth,
+                    backgroundColor: 'rgba(244, 63, 94, 0.65)',
+                    borderColor: 'rgba(244, 63, 94, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) { return '$' + value; }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // 2. Expenses Category Doughnut Chart
+    const ctxCat = document.getElementById('categoryChart').getContext('2d');
+    if (chartCategories.length > 0) {
+        new Chart(ctxCat, {
+            type: 'doughnut',
+            data: {
+                labels: chartCategories,
+                datasets: [{
+                    data: chartAmounts,
+                    backgroundColor: [
+                        'rgba(99, 102, 241, 0.7)',
+                        'rgba(139, 92, 246, 0.7)',
+                        'rgba(244, 63, 94, 0.7)',
+                        'rgba(217, 119, 6, 0.7)',
+                        'rgba(16, 185, 129, 0.7)',
+                        'rgba(6, 182, 212, 0.7)',
+                        'rgba(236, 72, 153, 0.7)',
+                        'rgba(234, 179, 8, 0.7)',
+                        'rgba(100, 116, 139, 0.7)'
+                    ],
+                    borderColor: 'rgba(30, 41, 59, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 12
+                        }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    } else {
+        // Render fallback text if no expense exists
+        const canvas = document.getElementById('categoryChart');
+        const ctx = canvas.getContext('2d');
+        ctx.font = '14px Outfit';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+        ctx.fillText('No expenses logged yet.', canvas.width/2, canvas.height/2);
+    }
+</script>
+{% endblock %}

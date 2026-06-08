@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Expenses - FinTrack{% endblock %}
+
+{% block content %}
+<div class="top-header">
+    <div class="page-title">
+        <h1>Expense Management</h1>
+        <p>Monitor your cash outflows and expenditures by category</p>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Record Expense Form -->
+    <div class="dashboard-card">
+        <h3 class="card-title">Log New Expense</h3>
+        <form method="POST">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <small class="error-text" style="color: var(--accent-rose); font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                    {{ field.errors|striptags }}
+                </small>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fa-solid fa-credit-card"></i> Save Expense Entry
+            </button>
+        </form>
+    </div>
+
+    <!-- Expense List Table -->
+    <div class="dashboard-card">
+        <h3 class="card-title">Expense History</h3>
+        {% if expenses %}
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Category & Details</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exp in expenses %}
+                    <tr>
+                        <td>
+                            <span style="font-weight: 600; color: #fff; display: block;">{{ exp.category }}</span>
+                            {% if exp.description %}
+                            <small style="color: var(--text-secondary); display: block; margin-top: 0.15rem;">{{ exp.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ exp.date|date:"M d, Y" }}</td>
+                        <td style="color: var(--accent-rose); font-weight: 600;">-${{ exp.amount|floatformat:2 }}</td>
+                        <td style="text-align: right;">
+                            <form action="{% url 'expense_delete' exp.pk %}" method="POST" class="inline-delete-form" onsubmit="return confirm('Are you sure you want to delete this expense entry?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger" style="padding: 0.4rem 0.6rem; font-size: 0.75rem; border-radius: 8px;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary); padding: 1rem 0;">No expenses have been logged yet. Use the form to record your first expense.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Budgets - FinTrack{% endblock %}
+
+{% block content %}
+<div class="top-header">
+    <div class="page-title">
+        <h1>Budget Limits</h1>
+        <p>Set spending thresholds per category to avoid overspending</p>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Create Budget Form -->
+    <div class="dashboard-card">
+        <h3 class="card-title">Set Budget Limit</h3>
+        <form method="POST">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <small class="error-text" style="color: var(--accent-rose); font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                    {{ field.errors|striptags }}
+                </small>
+                {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fa-solid fa-piggy-bank"></i> Save Budget Limit
+            </button>
+        </form>
+    </div>
+
+    <!-- Active Budgets List -->
+    <div class="dashboard-card">
+        <h3 class="card-title">Active Category Budgets</h3>
+        {% if budgets %}
+            {% for budget in budgets %}
+            <div class="budget-item" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; position: relative;">
+                <div class="budget-info" style="margin-bottom: 0.75rem;">
+                    <div>
+                        <strong style="font-size: 1.05rem; color: #fff; display: block; margin-bottom: 0.15rem;">{{ budget.category }}</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">
+                            <i class="fa-regular fa-calendar"></i> {{ budget.start_date|date:"M d" }} - {{ budget.end_date|date:"M d, Y" }}
+                        </span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 700; color: {% if budget.is_over %}var(--accent-rose){% else %}#fff{% endif %}; font-size: 1.05rem;">
+                            ${{ budget.spent|floatformat:2 }}
+                        </span>
+                        <span style="color: var(--text-secondary); font-size: 0.8rem;">
+                            / ${{ budget.amount|floatformat:2 }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="progress-container" style="height: 10px; margin-bottom: 1rem;">
+                    <div class="progress-bar {% if budget.is_over %}rose{% elif budget.progress > 85 %}amber{% else %}green{% endif %}" style="width: {{ budget.progress }}%;"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        {% if budget.is_over %}
+                        <span class="badge badge-expense" style="font-size: 0.7rem;"><i class="fa-solid fa-circle-exclamation"></i> Over Budget by ${{ budget.excess|floatformat:2 }}</span>
+                        {% else %}
+                        <span class="badge badge-income" style="font-size: 0.7rem;"><i class="fa-solid fa-circle-check"></i> Within Limit</span>
+                        {% endif %}
+                    </div>
+                    
+                    <form action="{% url 'budget_delete' budget.pk %}" method="POST" class="inline-delete-form" onsubmit="return confirm('Are you sure you want to remove this budget?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.55rem; font-size: 0.7rem; border-radius: 6px;">
+                            <i class="fa-solid fa-trash-can"></i> Remove
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: var(--text-secondary); padding: 1rem 0;">No active budgets set yet. Use the form to restrict spending.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
