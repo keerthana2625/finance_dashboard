@@ -1,0 +1,2 @@
+# Enforce Unix line endings for build shell scripts
+build.sh text eol=lf
